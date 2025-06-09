@@ -1,0 +1,10 @@
+AI GUI Forum Interaction History
+
+User → mistral:latest:
+say "hi" without saying hi.
+
+mistral:latest Response:
+Greetings!
+
+-------------------------
+

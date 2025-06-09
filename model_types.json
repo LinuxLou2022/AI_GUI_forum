@@ -1,0 +1,22 @@
+{
+  "codegemma:latest": {
+    "Chat": false,
+    "Code": true,
+    "Math": false
+  },
+  "starcoder2:latest": {
+    "Chat": false,
+    "Code": true,
+    "Math": false
+  },
+  "qwen2.5-coder:latest": {
+    "Chat": false,
+    "Code": true,
+    "Math": false
+  },
+  "mistral:latest": {
+    "Chat": true,
+    "Code": false,
+    "Math": true
+  }
+}

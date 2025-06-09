@@ -1,0 +1,51 @@
+AI GUI Forum Interaction History
+
+User → codegemma:latest:
+code snippet in python to use the while loop, show me a sample.
+
+codegemma:latest Response:
+```python
+# Initialize the counter variable
+counter = 0
+
+# Set the loop condition to continue until the counter reaches 10
+while counter < 10:
+    # Increment the counter variable
+    counter += 1
+
+    # Print the current value of the counter
+    print(counter)
+```
+
+**Output:**
+
+```
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+```
+
+**Explanation:**
+
+* The `while` loop is a conditional loop that continues to execute as long as the specified condition is true.
+* In this case, the condition is `counter < 10`, which means the loop will continue until the counter reaches 10.
+* Inside the loop, the counter variable is incremented by 1 using the `+=` operator.
+* The `print()` function is used to display the current value of the counter.
+* The loop continues until the counter reaches 10, at which point the condition becomes false, and the loop terminates.
+
+**Additional Notes:**
+
+* The `while` loop is a powerful tool for performing repetitive tasks.
+* It is important to ensure that the loop condition eventually becomes false to prevent an infinite loop.
+* The `break` statement can be used to exit the loop prematurely.
+* The `continue` statement can be used to skip the current iteration of the loop.
+
+-------------------------
+
