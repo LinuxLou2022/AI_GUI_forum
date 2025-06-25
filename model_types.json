@@ -1,10 +1,20 @@
 {
-  "codegemma:latest": {
+  "mathstral:latest": {
+    "Chat": false,
+    "Code": false,
+    "Math": true
+  },
+  "starcoder2:latest": {
     "Chat": false,
     "Code": true,
     "Math": false
   },
-  "starcoder2:latest": {
+  "deepseek-coder:latest": {
+    "Chat": true,
+    "Code": true,
+    "Math": false
+  },
+  "codegemma:latest": {
     "Chat": false,
     "Code": true,
     "Math": false

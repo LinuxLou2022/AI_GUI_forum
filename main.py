@@ -6,15 +6,22 @@ from tkinter import messagebox
 from datetime import datetime
 import os
 
-from core.model_interface import run_prompt_via_powershell
+# from core.model_interface import run_prompt_interactive
+
 
 from tkinter import Toplevel, Checkbutton, IntVar, Label, Button
-from core.model_interface import (
+from core import (
+    check_ollama_available,
     get_installed_models,
     load_model_attributes,
-    save_model_attributes
+    save_model_attributes,
+    OLLAMA_BIN,
+    start_model_background,
+    INSTALLED_MODELS,
+    query_model_api  # ← this is our new method!
 )
 
+import subprocess
 
 
 class AIGUIForum(tk.Tk):
@@ -52,32 +59,25 @@ class AIGUIForum(tk.Tk):
         container.pack(fill='both', expand=True, padx=10, pady=10)
 
         # Left side (main input/output stack)
-        left_panel = tk.Frame(container)
-        left_panel.pack(side='left', fill='both', expand=True)
+        self.left_panel = tk.Frame(container)
+        self.left_panel.pack(side='left', fill='both', expand=True)
 
-        # Model selection dropdown
-        self.model_var = tk.StringVar()
-        self.model_dropdown = ttk.Combobox(left_panel, textvariable=self.model_var)
-        #self.model_dropdown['values'] = ["Mistral", "Qwen2.5-Coder", "StarCoder2"]
-        from core.model_interface import get_installed_models
-
-        models = get_installed_models()
-        self.model_dropdown['values'] = models
-        if models:
-            self.model_dropdown.current(0)
-        self.model_dropdown.current(0)
-        self.model_dropdown.pack(pady=(0, 10))
+        self.left_panel = tk.Frame(container)
+        self.left_panel.pack(side='left', fill='both', expand=True)
 
         # Prompt input box
-        self.prompt_input = tk.Text(left_panel, height=8, width=80)
+        self.prompt_input = tk.Text(self.left_panel, height=8, width=80)
         self.prompt_input.pack(pady=(0, 10))
 
         # Submit button
-        self.submit_button = tk.Button(left_panel, text="Submit Prompt", command=self.handle_submit)
+        self.submit_button = tk.Button(self.left_panel, text="Submit Prompt", command=self.handle_submit)
         self.submit_button.pack(pady=(0, 10))
 
+        self.clear_button = tk.Button(self.left_panel, text="Clear Prompt", command=self.clear_prompt_input)
+        self.clear_button.pack(pady=(0, 10))
+
         # Output box
-        self.output_display = tk.Text(left_panel, height=20, width=80, state='disabled', wrap='word')
+        self.output_display = tk.Text(self.left_panel, height=20, width=80, state='disabled', wrap='word')
         self.output_display.pack()
 
         # Right side: history panel
@@ -90,23 +90,45 @@ class AIGUIForum(tk.Tk):
         with open(self.history_filename, 'w', encoding='utf-8') as f:
             f.write("AI GUI Forum Interaction History\n\n")
 
-    def handle_submit(self):
-        selected_model = self.model_var.get()
-        prompt = self.prompt_input.get("1.0", tk.END).strip()
+    def initialize_dropdown(self, model_list, default_model):
+        self.model_var = tk.StringVar()
+        self.model_dropdown = ttk.Combobox(self.left_panel, textvariable=self.model_var)
 
-        if not prompt:
-            self.display_response("[Warning] Prompt is empty.")
+        # Prioritize default model at top
+        if default_model in model_list:
+            model_list = [default_model] + [m for m in model_list if m != default_model]
+
+        self.model_dropdown['values'] = model_list
+        self.model_var.set(default_model)
+        self.model_dropdown.pack(pady=(0, 10), before=self.left_panel.winfo_children()[0])
+
+    def handle_submit(self, event=None):
+        prompt = self.prompt_input.get("1.0", tk.END).strip()
+        selected_model = self.model_var.get()
+
+        if not prompt or not selected_model:
             return
 
-        response = run_prompt_via_powershell(selected_model, prompt)
-        self.display_response(response)
-        self.update_history(prompt, selected_model, response)
-
-    def display_response(self, text):
+        # Display a waiting message
         self.output_display.config(state='normal')
         self.output_display.delete("1.0", tk.END)
-        self.output_display.insert(tk.END, text)
+        self.output_display.insert(tk.END, f"Please wait while '{selected_model}' generates a response...")
         self.output_display.config(state='disabled')
+        self.output_display.update()
+
+        # Get the model's response
+        response = query_model_api(selected_model, prompt)
+
+        # Display the actual response
+        self.output_display.config(state='normal')
+        self.output_display.delete("1.0", tk.END)
+        self.output_display.insert(tk.END, response)
+        self.output_display.config(state='disabled')
+
+        self.update_history(prompt, selected_model, response)
+
+    def clear_prompt_input(self):
+        self.prompt_input.delete("1.0", tk.END)
 
     def update_history(self, user_prompt, model_name, model_response):
         entry = (
@@ -155,11 +177,8 @@ class AIGUIForum(tk.Tk):
                 content = self.history_log.get("1.0", tk.END)
                 f.write(content)
 
-    def define_type(self):
-        messagebox.showinfo("Define Type", "This will later let you define model interaction roles/types.")
-
     def show_active_models(self):
-        from core.model_interface import get_installed_models
+        from core.functions import get_installed_models
         models = get_installed_models()
         messagebox.showinfo("Active Models", "\n".join(models))
 
@@ -203,7 +222,82 @@ class AIGUIForum(tk.Tk):
 
         Button(type_win, text="Save", command=save_and_close).grid(row=len(model_list) + 1, column=0, columnspan=4, pady=10)
 
+    def handle_response_line(self, line):
+        self.output_display.config(state='normal')
+        self.output_display.insert(tk.END, line)
+        self.output_display.see(tk.END)
+        self.output_display.config(state='disabled')
+
+
+'''if not check_ollama_available():
+    print("Ollama not found in system path.")
+    exit(1)'''
+
+
+# if not ensure_model_running("mistral"):
+#     print("Failed to run or start model 'mistral'.")
+#     exit(1)
+
+def prompt_user_for_model_choice(root, model_list):
+    selected_model = tk.StringVar(value=model_list[0])
+
+    def confirm():
+        model = selected_model.get()
+        root.selected_model_result = model
+        start_model_background(model)  # now model is defined
+        win.destroy()
+
+    win = Toplevel(root)
+    win.title("Select Default Model")
+    win.geometry("300x120")
+    win.grab_set()  # make modal
+
+    tk.Label(win, text="Select your default model:").pack(pady=10)
+    dropdown = ttk.Combobox(win, textvariable=selected_model, values=model_list, state='readonly')
+    dropdown.pack()
+    tk.Button(win, text="OK", command=confirm).pack(pady=10)
+
+    win.wait_window()  # wait until user closes
+    return getattr(root, "selected_model_result", None)
+
 
 if __name__ == "__main__":
+    from tkinter import Tk
+
+    # Create temporary root
+    temp_root = Tk()
+    temp_root.withdraw()  # hide it
+
+    if not check_ollama_available():
+        messagebox.showerror("Ollama Not Found", "Ollama is not available on this system. Please install it first.")
+        exit(1)
+
+    models = get_installed_models()
+    if not models:
+        messagebox.showerror("No Models Found", "No Ollama models are installed. Please install at least one.")
+        exit(1)
+
+    # Ensure model_types.json is updated
+    existing_types = load_model_attributes()
+    updated = False
+    for model in models:
+        if model not in existing_types:
+            existing_types[model] = {"Chat": False, "Code": False, "Math": False}
+            updated = True
+    if updated:
+        save_model_attributes(existing_types)
+
+    # Prompt for model selection using the hidden root
+    default_model = prompt_user_for_model_choice(temp_root, models)
+    temp_root.destroy()
+
+
+    if not default_model:
+        messagebox.showerror("No Model Selected", "You must select a model to continue.")
+        exit(1)
+
+
+    # Now create the actual GUI
     app = AIGUIForum()
+    app.initialize_dropdown(models, default_model)
     app.mainloop()
